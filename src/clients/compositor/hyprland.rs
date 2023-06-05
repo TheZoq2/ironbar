@@ -1,4 +1,4 @@
-use super::{Visibility, Workspace, WorkspaceClient, WorkspaceUpdate, WorkspaceId};
+use super::{Visibility, Workspace, WorkspaceClient, WorkspaceId, WorkspaceUpdate};
 use crate::{arc_mut, lock, send};
 use color_eyre::Result;
 use hyprland::data::{Workspace as HWorkspace, Workspaces};
@@ -94,6 +94,30 @@ impl EventClient {
                 });
             }
 
+            macro_rules! workspace_batch_event {
+                ($event:ident) => {
+                    let tx = tx.clone();
+                    let active = active.clone();
+
+                    // Just update all the workspaces
+                    event_listener.$event(move |_state| {
+                        Workspaces::get().unwrap().into_iter().for_each(|ws| {
+                            let prev_workspace = lock!(active);
+                            let focused = prev_workspace
+                                .as_ref()
+                                .map_or(Visibility::Visible(false), |w| {
+                                    Visibility::Visible(w.id == WorkspaceId(format!("{}", ws.id)))
+                                });
+                            send!(tx, WorkspaceUpdate::Update(Workspace::from((focused, ws))));
+                        });
+                    })
+                };
+            }
+
+            workspace_batch_event!(add_window_open_handler);
+            workspace_batch_event!(add_window_close_handler);
+            workspace_batch_event!(add_window_moved_handler);
+
             {
                 let tx = tx.clone();
                 let lock = lock.clone();
@@ -156,7 +180,7 @@ impl EventClient {
                     debug!("Received workspace destroy: {name:?}");
 
                     // TODO: Horrible hack, see other todo in remove handler
-                    send!(tx, WorkspaceUpdate::Remove{name: name.0});
+                    send!(tx, WorkspaceUpdate::Remove { name: name.0 });
                 });
             }
 
@@ -173,13 +197,17 @@ impl EventClient {
         workspace: Workspace,
         tx: &Sender<WorkspaceUpdate>,
     ) {
-        send!(
-            tx,
-            WorkspaceUpdate::Focus {
-                old: prev_workspace.take(),
-                new: workspace.clone(),
-            }
-        );
+        let old = prev_workspace.as_ref();
+
+        if let Some(old) = old {
+            send!(
+                tx,
+                WorkspaceUpdate::Focus {
+                    old: prev_workspace.take(),
+                    new: workspace.clone(),
+                }
+            );
+        }
         prev_workspace.replace(workspace);
     }
 

@@ -288,7 +288,6 @@ impl Module<gtk::Box> for WorkspacesModule {
                         }
                     }
                     WorkspaceUpdate::Update(workspace) => {
-                        println!("Workspace update {workspace:?}");
                         let old = button_map.get(&workspace.id);
                         if let Some(item) = old {
                             container.remove(item);
@@ -379,7 +378,6 @@ impl Module<gtk::Box> for WorkspacesModule {
                     }
                     WorkspaceUpdate::Remove{name} => {
                         // NOTE: Workspace remove is unsupported
-                        println!("Workspace remove event");
                         // TODO: This is super cursed, we're removing workspaces by
                         // name here, but the button map contains IDs* However,
                         // by the time a workspace is removed, it is empty and so
