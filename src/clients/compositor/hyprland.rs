@@ -1,4 +1,4 @@
-use super::{Visibility, Workspace, WorkspaceClient, WorkspaceUpdate};
+use super::{Visibility, Workspace, WorkspaceClient, WorkspaceUpdate, WorkspaceId};
 use crate::{arc_mut, lock, send};
 use color_eyre::Result;
 use hyprland::data::{Workspace as HWorkspace, Workspaces};
@@ -50,7 +50,7 @@ impl EventClient {
                     let _lock = lock!(lock);
                     debug!("Added workspace: {workspace_type:?}");
 
-                    let workspace_name = get_workspace_name(workspace_type);
+                    let workspace_name = get_workspace_id(workspace_type);
                     let prev_workspace = lock!(active);
 
                     let workspace = Self::get_workspace(&workspace_name, prev_workspace.as_ref());
@@ -76,12 +76,12 @@ impl EventClient {
                         prev_workspace.as_ref().map(|w| &w.id)
                     );
 
-                    let workspace_name = get_workspace_name(workspace_type);
+                    let workspace_name = get_workspace_id(workspace_type);
                     let workspace = Self::get_workspace(&workspace_name, prev_workspace.as_ref());
 
                     workspace.map_or_else(
                         || {
-                            error!("Unable to locate workspace");
+                            error!("Unable to locate workspace {workspace_name:?}");
                         },
                         |workspace| {
                             // there may be another type of update so dispatch that regardless of focus change
@@ -110,7 +110,7 @@ impl EventClient {
                         prev_workspace.as_ref().map(|w| &w.name)
                     );
 
-                    let workspace_name = get_workspace_name(workspace_type);
+                    let workspace_name = get_workspace_id(workspace_type);
                     let workspace = Self::get_workspace(&workspace_name, prev_workspace.as_ref());
 
                     if let Some((false, workspace)) =
@@ -134,7 +134,7 @@ impl EventClient {
 
                     let mut prev_workspace = lock!(active);
 
-                    let workspace_name = get_workspace_name(workspace_type);
+                    let workspace_name = get_workspace_id(workspace_type);
                     let workspace = Self::get_workspace(&workspace_name, prev_workspace.as_ref());
 
                     if let Some(workspace) = workspace {
@@ -152,8 +152,11 @@ impl EventClient {
                     let _lock = lock!(lock);
                     debug!("Received workspace destroy: {workspace_type:?}");
 
-                    let name = get_workspace_name(workspace_type);
-                    send!(tx, WorkspaceUpdate::Remove(name));
+                    let name = get_workspace_id(workspace_type);
+                    debug!("Received workspace destroy: {name:?}");
+
+                    // TODO: Horrible hack, see other todo in remove handler
+                    send!(tx, WorkspaceUpdate::Remove{name: name.0});
                 });
             }
 
@@ -177,16 +180,15 @@ impl EventClient {
                 new: workspace.clone(),
             }
         );
-
         prev_workspace.replace(workspace);
     }
 
     /// Gets a workspace by name from the server, given the active workspace if known.
-    fn get_workspace(name: &str, active: Option<&Workspace>) -> Option<Workspace> {
+    fn get_workspace(id: &WorkspaceId, active: Option<&Workspace>) -> Option<Workspace> {
         Workspaces::get()
             .expect("Failed to get workspaces")
             .find_map(|w| {
-                if w.name == name {
+                if &WorkspaceId(w.id.to_string()) == id {
                     let vis = Visibility::from((&w, active.map(|w| w.name.as_ref()), &|w| {
                         create_is_visible()(w)
                     }));
@@ -253,10 +255,10 @@ pub fn get_client() -> &'static EventClient {
     &CLIENT
 }
 
-fn get_workspace_name(name: WorkspaceType) -> String {
+fn get_workspace_id(name: WorkspaceType) -> WorkspaceId {
     match name {
-        WorkspaceType::Regular(name) => name,
-        WorkspaceType::Special(name) => name.unwrap_or_default(),
+        WorkspaceType::Regular(name) => WorkspaceId(name),
+        WorkspaceType::Special(name) => WorkspaceId(name.unwrap_or_default()),
     }
 }
 
@@ -270,7 +272,7 @@ fn create_is_visible() -> impl Fn(&HWorkspace) -> bool {
 impl From<(Visibility, HWorkspace)> for Workspace {
     fn from((visibility, workspace): (Visibility, HWorkspace)) -> Self {
         Self {
-            id: workspace.id.to_string(),
+            id: WorkspaceId(workspace.id.to_string()),
             name: workspace.name,
             monitor: workspace.monitor,
             visibility,

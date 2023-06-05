@@ -1,4 +1,4 @@
-use super::{Visibility, Workspace, WorkspaceClient, WorkspaceUpdate};
+use super::{Visibility, Workspace, WorkspaceClient, WorkspaceUpdate, WorkspaceId};
 use crate::{await_sync, send};
 use async_once::AsyncOnce;
 use color_eyre::Report;
@@ -108,7 +108,7 @@ impl From<Node> for Workspace {
         let visibility = Visibility::from(&node);
 
         Self {
-            id: node.id.to_string(),
+            id: WorkspaceId(node.id.to_string()),
             name: node.name.unwrap_or_default(),
             monitor: node.output.unwrap_or_default(),
             visibility,
@@ -121,7 +121,7 @@ impl From<swayipc_async::Workspace> for Workspace {
         let visibility = Visibility::from(&workspace);
 
         Self {
-            id: workspace.id.to_string(),
+            id: WorkspaceId(workspace.id.to_string()),
             name: workspace.name,
             monitor: workspace.output,
             visibility,
@@ -159,17 +159,15 @@ impl From<WorkspaceEvent> for WorkspaceUpdate {
             WorkspaceChange::Init => {
                 Self::Add(event.current.expect("Missing current workspace").into())
             }
-            WorkspaceChange::Empty => Self::Remove(
+            WorkspaceChange::Empty => todo!("Re-add support for sway empty"),/*Self::Remove(
                 event
                     .current
                     .expect("Missing current workspace")
                     .name
                     .unwrap_or_default(),
-            ),
-            WorkspaceChange::Focus => Self::Focus {
-                old: event.old.map(Workspace::from),
-                new: Workspace::from(event.current.expect("Missing current workspace")),
-            },
+            ),*/
+            WorkspaceChange::Focus => 
+                todo!("Re-add support for focus on sway"),
             WorkspaceChange::Move => {
                 Self::Move(event.current.expect("Missing current workspace").into())
             }

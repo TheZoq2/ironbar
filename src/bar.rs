@@ -60,8 +60,8 @@ pub fn create_bar(
     let center = create_container("center", orientation);
     let end = create_container("end", orientation);
 
-    content.add(&start);
-    content.set_center_widget(Some(&center));
+    content.pack_start(&start, true, true, 0);
+    // content.set_center_widget(Some(&center));
     content.pack_end(&end, false, false, 0);
 
     let load_result = load_modules(&start, &center, &end, app, config, monitor, monitor_name)?;
@@ -83,7 +83,7 @@ pub fn create_bar(
     // show each box but do not use `show_all`.
     // this ensures `show_if` option works as intended.
     start.show();
-    center.show();
+    // center.show();
     end.show();
     content.show();
     win.show();

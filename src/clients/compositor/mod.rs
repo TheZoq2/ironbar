@@ -67,10 +67,13 @@ impl Compositor {
     }
 }
 
+#[derive(Hash, Debug, Clone, PartialEq, Eq)]
+pub struct WorkspaceId(pub String);
+
 #[derive(Debug, Clone)]
 pub struct Workspace {
     /// Unique identifier
-    pub id: String,
+    pub id: WorkspaceId,
     /// Workspace friendly name
     pub name: String,
     /// Name of the monitor (output) the workspace is located on
@@ -115,7 +118,7 @@ pub enum WorkspaceUpdate {
     /// This is re-sent to all subscribers when a new subscription is created.
     Init(Vec<Workspace>),
     Add(Workspace),
-    Remove(String),
+    Remove{name: String},
     Update(Workspace),
     Move(Workspace),
     /// Declares focus moved from the old workspace to the new.
