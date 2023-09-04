@@ -173,7 +173,7 @@ impl Module<MenuBar> for TrayModule {
         context: WidgetContext<Self::SendMessage, Self::ReceiveMessage>,
         _info: &ModuleInfo,
     ) -> Result<ModuleParts<MenuBar>> {
-        let container = MenuBar::new();
+        let container = MenuBar::builder().pack_direction(gtk::PackDirection::Ttb).build();
 
         {
             let container = container.clone();
